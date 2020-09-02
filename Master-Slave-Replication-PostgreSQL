@@ -1,0 +1,107 @@
+1. Install PostgreSQL Software
+	- The steps in this section should be performed on both the master and slave servers
+		- sudo apt-get update
+		- sudo apt-get install postgresql postgresql-contrib postgresql-client
+		- sudo systemctl status/start postgresql
+		- sudo systemctl enable postgresql
+
+	- PostgreSQL creates a user called “postgres” in order to handle its initial databases. We will configure ssh access between our servers to make transferring files easier
+		- sudo passwd postgres
+		- sudo su - postgres
+		- ssh-keygen
+
+	- Transfer the keys to the other server by typing
+		- ssh-copy-id IP_address_of_opposite_server
+
+
+2. Configure the Master Server
+	- All of these commands should be executed with the postgres user
+		- psql -c "CREATE USER rep REPLICATION LOGIN CONNECTION LIMIT 1 ENCRYPTED PASSWORD 'yourpassword';"
+		- nano /etc/postgresql/version_of_potsgres/main/pg_hba.conf (At any place not at the bottom of the file, add a line to let the new user get access to this server)
+			..........
+			host    replication     rep     IP_address_of_slave/32   md5
+
+
+		- nano /etc/postgresql/version_of_potsgres/main/postgresql.conf (Uncomment them if they are commented, and modify the values according to what we have listed below)
+			........
+			listen_addresses = 'localhost,IP_address_of_THIS_host'
+			wal_level = 'hot_standby'
+			archive_mode = on
+			archive_command = 'cd .'
+			max_wal_senders = 1
+			hot_standby = on
+
+
+		- service postgresql restart
+
+
+3. Configure the Slave Server
+		- service postgresql stop
+		- nano /etc/postgresql/version_of_potsgres/main/pg_hba.conf (At any place not at the bottom of the file, add a line to let the new user get access to this server)
+			........
+			host    replication     rep     IP_address_of_master/32  md5
+
+
+		- nano /etc/postgresql/version_of_potsgres/main/postgresql.conf (Uncomment them if they are commented, and modify the values according to what we have listed below)
+			........
+			listen_addresses = 'localhost,IP_address_of_THIS_host'
+			wal_level = 'hot_standby'
+			archive_mode = on
+			archive_command = 'cd .'
+			max_wal_senders = 1
+			hot_standby = on
+
+
+		- service postgresql start/restart/status
+
+
+
+4. Replicating the Initial database
+	- On the master server, we can use an internal postgres backup start command to create a backup label command
+	- We then will transfer the database data to our slave and then issue an internal backup stop command to clean up
+		- psql -c "select pg_start_backup('initial_backup');"
+		- rsync -cva --inplace --exclude=*pg_xlog* /var/lib/postgresql/version_of_postgres/main/ slave_IP_address:/var/lib/postgresql/version_of_postgres/main/
+		- psql -c "select pg_stop_backup();"
+
+	- The rsync command may have had an error on modifying the certificate files, but this is okay for our use. The master’s data should now be on the slave
+	- Configure a recovery file on our slave
+	- On the slave navigate to the data directory
+		- cd /var/lib/postgresql/version_of_postgres/main
+
+	- Here, we need to create a recovery file called recovery.conf
+		- nano /var/lib/postgresql/version_of_postgres/main/recovery.conf
+			standby_mode = 'on'
+			primary_conninfo = 'host=master_IP_address port=5432 user=rep password=yourpassword'
+			trigger_file = '/tmp/postgresql.trigger.5432'
+
+
+		- service postgresql start
+		- less /var/log/postgresql/version_of_postgres-main.log
+
+
+5. Test the Replication
+	- On the master server, as the postgres user, log into the postgres system by typing
+		- psql
+			- CREATE TABLE rep_test (test varchar(40));
+			- INSERT INTO rep_test VALUES ('data one');
+			- INSERT INTO rep_test VALUES ('some more words');
+			- INSERT INTO rep_test VALUES ('lalala');
+			- INSERT INTO rep_test VALUES ('hello there');
+			- INSERT INTO rep_test VALUES ('blahblah');
+			- \l
+			- \dt
+		- \q
+
+
+	- On the slave, enter the database interface in the same way
+		- su - postgres
+			- psql || sudo -i -u postgres && psql
+		- \l
+		- \dt
+		- SELECT * FROM rep_test;
+		- INSERT INTO rep_test VALUES ('oops');
+		- \q
+			
+		
+	
+

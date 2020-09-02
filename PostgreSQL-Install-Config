@@ -1,0 +1,110 @@
+Install and Config PostgreSQL on Ubuntu 18.04:
+Prerequisites:
+
+  Step 1 — Logging in as Root:
+  ssh root@your_server_ip
+
+
+  Step 2 — Creating a New User:
+  adduser mysqluser
+
+
+  Step 3 — Granting Administrative Privileges:
+  usermod -aG sudo sammy
+
+
+  Step 4 — Setting Up a Basic Firewall:
+  ufw app list
+  ufw allow OpenSSH
+  ufw enable
+  ufw status
+  
+
+  Step 5 — Enabling External Access for Your Regular User:
+
+  If the Root Account Uses Password Authentication:
+  ssh sammy@your_server_ip
+  sudo command_to_run
+  
+  If the Root Account Uses SSH Key Authentication:
+
+  The simplest way to copy the files with the correct ownership and permissions is with the rsync command.
+  This will copy the root user’s .ssh directory, preserve the permissions, and modify the file owners, all in a single command.
+  Make sure to change the highlighted portions of the command below to match your regular user’s name:
+  
+  rsync --archive --chown=mysqluser:mysqluser ~/.ssh /home/mysqluser
+  ssh sammy@your_server_ip
+  sudo command_to_run
+
+  For many other details please access the following link:
+  https://www.digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu-18-04
+
+1.Step 1 — Installing PostgreSQL:
+  sudo apt update
+  sudo apt install postgresql postgresql-contrib
+  sudo systemctl status postgresql
+
+2.Step 2 — Using PostgreSQL Roles and Databases:
+
+  Switching Over to the postgres Account:
+  sudo -i -u postgres
+  pwd/whoami
+  psql
+  \q
+  exit
+
+Accessing a Postgres Prompt Without Switching Accounts:
+  sudo -u postgres psql
+  \q
+
+3.Step 3 — Creating a New Role:
+  sudo -i -u postgres
+  createuser --interactive
+  man createuser
+
+4.Step 4 — Creating a New Database:
+  
+  If you are logged in as the postgres account, you would type something like:
+  createdb sammy
+
+5.Step 5 — Opening a Postgres Prompt with the New Role:
+
+  If you don’t have a matching Linux user available, you can create one with the adduser command.
+  You will have to do this from your non-root account with sudo privileges (meaning, not logged in as the postgres user):
+  sudo adduser sammy
+  sudo -i -u sammy
+  psql
+
+  If you want your user to connect to a different database, you can do so by specifying the database like this:
+  psql -d postgres
+  \conninfo
+
+6.Step 6 — Creating and Deleting Tables:
+  CREATE TABLE playground (
+    equip_id serial PRIMARY KEY,
+    type varchar (50) NOT NULL,
+    color varchar (25) NOT NULL,
+    location varchar(25) check (location in ('north', 'south', 'west', 'east', 'northeast', 'southeast', 'southwest', 'northwest')),
+    install_date date
+);
+ 
+  \d
+  \dt
+  \d playground
+
+7.Step 7 — Adding, Querying, and Deleting Data in a Table:
+  INSERT INTO playground (type, color, location, install_date) VALUES ('slide', 'blue', 'south', '2017-04-28');
+  INSERT INTO playground (type, color, location, install_date) VALUES ('swing', 'yellow', 'northwest', '2018-08-16');
+  SELECT * FROM playground;
+  SELECT "color" FROM playground;
+  DELETE FROM playground WHERE type = 'slide';
+  SELECT * FROM playground;
+
+8.Step 8 — Adding and Deleting Columns from a Table:
+  ALTER TABLE playground ADD last_maint date;
+  SELECT * FROM playground;
+  ALTER TABLE playground DROP last_maint;
+
+9.Step 9 — Updating Data in a Table:
+  UPDATE playground SET color = 'red' WHERE type = 'swing';
+  SELECT * FROM playground;

@@ -1,0 +1,79 @@
+Server       				IP
+db01				192.168.0.102 - Master
+db02				192.168.0.105 - Slave
+
+Install and configure MySQL on both servers (db01 and db02):
+		1. sudo apt install -y mysql-server
+		2. sudo mysql_secure_installation (if not added when install database)
+		3. sudo systemctl restart mysql / sudo service mysql restart
+		4. mysql -u root -p
+
+	On Master:
+		1. sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf (uncomment and add)
+			bind-address            = 192.168.0.102
+			server-id               = 1
+			log_bin                 = /var/log/mysql/mysql-bin.log
+
+		2. sudo service mysql restart
+		3. mysql -u root -p
+			create user 'repl'@'%' identified by 'slavepassword';
+		If returned a error, run following command:
+			uninstall plugin validate_password;
+			grant replication slave on *.* to 'repl'@'%';
+			show databases;
+			create database pets;
+			create table pets.cats (name varchar(20));
+			insert into pets.cats values ('fluffy');
+			select * from pets.cats;
+			exit
+		4. mysqldump -u root -p --all-databases --master-data > masterdump.sql
+		5. grep CHANGE *sql | head -1
+		6. ls -l
+		7. scp masterdump.sql mihai@192.168.0.105:
+	
+	On Slave:
+		1. sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf (uncomment and add)
+			bind-address            = 192.168.0.105
+			server-id               = 2
+			log_bin                 = /var/log/mysql/mysql-bin.log
+
+		2. sudo service mysql restart
+		3. mysql -u root -p
+			CHANGE MASTER TO
+			MASTER_HOST='192.168.0.102',
+			MASTER_USER='repl',
+			MASTER_PASSWORD='slavepassword';
+			exit
+		4. mysql -u root -p < masterdump.sql (restore data from Master server)
+		5. mysql -u root -p
+		        show slave status\G;
+			exit
+	
+	On Master:
+		1. mysql -u root -p
+			insert into pets.cats values ('grumpy');
+			select * from pets.cats;
+			show slave hosts;
+			exit
+
+	On Slave:
+		1. mysql -u root -p
+			select * from pets.cats;
+			exit
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		
+
+

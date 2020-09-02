@@ -1,0 +1,281 @@
+Install and Config MySQL on Ubuntu 18.04:
+Prerequisites:
+
+  Step 1 — Logging in as Root:
+  	- ssh root@your_server_ip
+
+
+  Step 2 — Creating a New User:
+  	- adduser mysqluser
+
+
+  Step 3 — Granting Administrative Privileges:
+  	- usermod -aG sudo sammy
+
+
+  Step 4 — Setting Up a Basic Firewall:
+	  - ufw app list
+	  - ufw allow OpenSSH
+	  - ufw enable
+	  - ufw status
+  
+
+  Step 5 — Enabling External Access for Your Regular User:
+
+  	If the Root Account Uses Password Authentication:
+	  - ssh sammy@your_server_ip
+	  - sudo command_to_run
+  
+  If the Root Account Uses SSH Key Authentication:
+
+  The simplest way to copy the files with the correct ownership and permissions is with the rsync command.
+  This will copy the root user’s .ssh directory, preserve the permissions, and modify the file owners, all in a single command.
+
+  Make sure to change the highlighted portions of the command below to match your regular user’s name:
+  
+	  - rsync --archive --chown=mysqluser:mysqluser ~/.ssh /home/mysqluser
+	  - ssh sammy@your_server_ip
+	  - sudo command_to_run
+
+  For many other details please access the following link:
+  https://www.digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu-18-04
+
+
+1.Step 1 — Installing MySQL:
+	  - sudo apt update
+	  - sudo apt install mysql-server
+	  - sudo systemctl status mysql-server
+  
+
+2.Step 2 — Configuring MySQL:
+  	- sudo mysql_secure_installation
+	- sudo mysql
+		SELECT user,authentication_string,plugin,host FROM mysql.user;
+		ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';
+		FLUSH PRIVILEGES;
+		SELECT user,authentication_string,plugin,host FROM mysql.user;
+		exit
+	
+	
+
+  To initialize the MySQL data directory, you would use mysql_install_db for versions before 5.7.6, and mysqld --initialize for 5.7.6 and later.
+  However, if you installed MySQL from the Debian distribution, as described in Step 1,
+  the data directory was initialized automatically; you don’t have to do anything.
+
+3.Step 3 — (Optional) Adjusting User Authentication and Privileges:
+	- sudo mysql
+		  SELECT user,authentication_string,plugin,host FROM mysql.user;
+	- Set password for user:
+		  	ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';
+	- Update password for user:
+		  	ALTER USER 'userName'@'localhost' IDENTIFIED BY 'New-Password-Here'
+		  	FLUSH PRIVILEGES;
+		  	SELECT user,authentication_string,plugin,host FROM mysql.user;
+		  	exit
+	- sudo mysql
+	- mysql -u root -p
+		  	CREATE USER 'sammy'@'localhost' IDENTIFIED BY 'password';
+		  	GRANT ALL PRIVILEGES ON *.* TO 'sammy'@'localhost' WITH GRANT OPTION;
+		  	exit
+	- mysql -u sammy -p
+	  	exit
+	- mysql -u root -p
+	  	exit
+
+4.Step 4 — Testing MySQL:
+	  - systemctl status mysql.service
+	  - sudo mysqladmin -p -u root version
+
+  For more information about install/config mysql please access the following link:
+  	https://www.digitalocean.com/community/tutorials/how-to-install-mysql-on-ubuntu-18-04
+
+  Mysql config file:
+  	/etc/mysql/mysql.conf.d/mysqld.cnf
+
+
+
+Move a MySQL Data Directory to a New Location on Ubuntu 18.04:
+1.Step 1 — Moving the MySQL Data Directory:
+	  - mysql -u root -p
+	  	select @@datadir;
+	  - sudo systemctl stop mysql
+	  - sudo systemctl status mysql
+	  - sudo rsync -av /var/lib/mysql /mnt/volume-nyc1-01
+	  - sudo mv /var/lib/mysql /var/lib/mysql.bak
+
+2.Step 2 — Pointing to the New Data Location:
+	- sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
+	- Find the line that begins with datadir= and change the path which follows to reflect the new location:
+	  datadir=/mnt/volume-nyc1-01/mysql
+
+3.Step 3 — Configuring AppArmor Access Control Rules:
+	  	- sudo nano /etc/apparmor.d/tunables/aliasl
+	  At the bottom of the file, add the following alias rule:
+		  - alias /var/lib/mysql/ -> /mnt/volume-nyc1-01/mysql/,
+		  - sudo systemctl restart apparmor
+		  - sudo systemctl status apparmor
+
+4.Step 4 — Restarting MySQL:
+  The next step is to start MySQL, but if you do, you’ll run into another error.
+  This time, instead of an AppArmor issue, the error happens because the script mysql-systemd-start
+  checks for the existence of either a directory, -d, or a symbolic link, -L, that matches two default paths.
+	  It fails if they’re not found:
+	 
+	  nano /usr/share/mysql/mysql-systemd-start (and add)
+
+		  if [ ! -d /var/lib/mysql ] && [ ! -L /var/lib/mysql ]; then
+		  echo "MySQL data dir not found at /var/lib/mysql. Please create one."
+		  exit 1
+		  fi
+
+		  if [ ! -d /var/lib/mysql/mysql ] && [ ! -L /var/lib/mysql/mysql ]; then
+		  echo "MySQL system database not found. Please run mysql_install_db tool."
+		  exit 1
+		  fi
+	  
+	  save&exit
+
+	  - sudo mkdir /var/lib/mysql/mysql -p
+	  - mysql -u root -p
+	  - sudo rm -Rf /var/lib/mysql.bak
+	  - sudo systemctl restart mysql
+	  - sudo systemctl status mysql
+
+  For more information about "Move a MySQL Data Directory to a New Location on Ubuntu 18.04" please access the following link:
+  	https://www.digitalocean.com/community/tutorials/how-to-move-a-mysql-data-directory-to-a-new-location-on-ubuntu-18-04#step-4-%E2%80%94- restarting-mysql
+
+
+5.How to Access MySQL Error Logs:
+  	- sudo less /var/log/mysql/error.log
+
+6.List all databases in Mysql:
+	  show databases
+	  use sys;
+
+7.List all tables in a database:
+  	show tables;
+  
+8.Create a database in Mysql:
+	sudo 
+  	create database testdb;
+	mysqladmin -u root -p create database_name
+
+9.Create a table in Mysql:
+	  CREATE TABLE teststable (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+	  name VARCHAR(20),
+	  food VARCHAR(30),
+	  confirmed CHAR(1), 
+	  signup_date DATE);
+  
+  	DESCRIBE teststable;
+
+10.Insert some data in Mysql:
+   	INSERT INTO `teststable` (`id`,`name`,`food`,`confirmed`,`signup_date`) VALUES (NULL, "John", "Casserole","Y", '2012-04-11');
+	DESCRIBE teststable;
+	SELECT*FROM teststable;
+	DROP TABLE teststable;
+
+11.Manage users - create user and set the password for user in Mysql:
+	  CREATE USER 'sammy'@'localhost' IDENTIFIED BY 'password';
+	  GRANT ALL PRIVILEGES ON *.* TO 'sammy'@'localhost' WITH GRANT OPTION;
+
+12.Backup and restore a mysql database:
+	- Create a backup file:
+	     	- mkdir /db_back
+                - touch /db_back/mysql_backup.sql
+
+	- Create a backup:
+		- mysqldump -u root -p mysql > /db_back/mysql_backup.sql
+		- ls -l /db_back/mysql_backup.sql
+		- file /db_back/mysql_backup.sql
+		- more /db_back/mysql_backup.sql
+
+	- Backup a Single MySQL Database
+		- mysqldump -u root -p database_name > database_name.sql
+
+	- Backup Multiple MySQL Databases
+		- mysqldump -u root -p --databases database_name_a database_name_b > databases_a_b.sql
+
+	- Backup All MySQL Databases
+		- mysqldump -u root -p --all-databases > all_databases.sql
+
+	- Backup all MySQL databases to separate files
+		- for DB in $(mysql -e 'show databases' -s --skip-column-names); do
+		    mysqldump $DB > "$DB.sql";
+		done
+
+	- Create a Compressed MySQL Database Backup
+		- mysqldump database_name | gzip > database_name.sql.gz
+
+	- Create a Backup with Timestamp
+		- mysqldump  database_name > database_name-$(date +%Y%m%d).sql
+
+	- Restoring a MySQL dump
+		- sudo systemctl status mysql.service / sudo systemctl status mysql.service
+		- mysqld  database_name < file.sql
+
+		- In most cases you'll need to create a database to import into.
+		  If the database already exists, first you need to delete it.
+			- CREATE DATABASE IF NOT EXISTS database_name;
+
+		- mysql -u root -p -e "create database database_name";
+		- mysql -u root -p database_name < database_name.sql
+
+
+	- Export and Import a MySQL Database in One Command
+		- mysqldump -u root -p database_name | mysql -h remote_host -u root -p remote_database_name
+
+	- Automate Backups with Cron 
+		- To set up automated backups of a MySQL database using cronjob, follow the steps below:
+			- Create a file named .my.cnf in your user home directory:
+				- sudo nano ~/.my.cnf (and add)
+					[client]
+					user = dbuser
+					password = dbpasswd
+
+			- Restrict permissions of the credentials file so that only your user has access to it:
+				- chmod 600 ~/.my.cnf
+
+			- Create a directory to store the backups:
+				- mkdir ~/db_backups
+
+			- Open your user crontab file:
+				- crontab -e
+
+			- Add the following cron job that will create a backup of a database name mydb every day at 3am:
+				- 0 3 * * * /usr/bin/mysqldump -u dbuser mydb > /home/username/db_backups/mydb-$(date +%Y%m%d).sql
+
+			- You can also create another cronjob to delete any backups older than 30 days:
+				- find /path/to/backups -type f -name "*.sql" -mtime +30 -delete
+		
+
+
+13.Encrypt my backup file:
+   	- openssl enc -aes-256-cbc -in /db_back/mysql_backup.sql -out /db_back/testbackup.file (if you ask for the password can type enter and can leave blank password)
+	   - ls -l /db_back/mysql_backup.sql
+	   - rm /db_back/mysql_backup.sql
+	   - ls -l /db_back/testbackup.file
+	   - cat /db_back/testbackup.file
+	   - mysql -u root -p
+		   show databases;
+		   use mysql;
+		   drop database mysql;
+		   show databases;
+		   exit
+
+14.Decrypt my backup file:
+	   - openssl enc -aes-256-cbc -d -in /db_back/testbackup.file > /db_back/mysql.sql
+	   - ls -l /db_back/
+  
+
+   
+
+
+
+
+  
+  
+
+
+
+

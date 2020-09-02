@@ -1,0 +1,95 @@
+Backup and Restore MySQL Database:
+	- Create a backup file/directory:
+	     	- mkdir /db_back
+                - touch /db_back/mysql_backup.sql
+
+	- Create a backup:
+		- mysqldump -u root -p mysql > /db_back/mysql_backup.sql
+		- ls -l /db_back/mysql_backup.sql
+		- file /db_back/mysql_backup.sql
+		- more /db_back/mysql_backup.sql
+
+	- Backup MySQL
+		- Backup a Single MySQL Database
+			- sudo systemctl status mysql.service / sudo systemctl status mysql.service
+			- mysqldump -u root -p database_name > database_name.sql
+
+		- Backup Multiple MySQL Databases
+			- mysqldump -u root -p --databases database_name_a database_name_b > databases_a_b.sql
+
+		- Backup All MySQL Databases
+			- mysqldump -u root -p --all-databases > all_databases.sql
+
+		- Backup all MySQL databases to separate files
+			- for DB in $(mysql -e 'show databases' -s --skip-column-names); do
+			    mysqldump $DB > "$DB.sql";
+			done
+
+		- Create a Compressed MySQL Database Backup
+			- mysqldump database_name | gzip > database_name.sql.gz
+
+		- Create a Backup with Timestamp
+			- mysqldump  database_name > database_name-$(date +%Y%m%d).sql
+
+	- Restoring a MySQL dump
+		- sudo systemctl status mysql.service / sudo systemctl status mysql.service
+		- mysqld  database_name < file.sql
+
+		- In most cases you'll need to create a database to import into.
+		  If the database already exists, first you need to delete it.
+			- CREATE DATABASE IF NOT EXISTS database_name;
+
+		- mysql -u root -p -e "create database database_name";
+		- mysql -u root -p database_name < database_name.sql
+
+	- Export and Import a MySQL Database in One Command
+		- mysqldump -u root -p database_name | mysql -h remote_host -u root -p remote_database_name
+
+	- Export and Import a MySQL Database in One Command
+		- mysqldump -u root -p database_name | mysql -h remote_host -u root -p remote_database_name
+
+	- Automate Backups with Cron 
+		- To set up automated backups of a MySQL database using cronjob, follow the steps below:
+			- Create a file named .my.cnf in your user home directory:
+				- sudo nano ~/.my.cnf (and add)
+					[client]
+					user = dbuser
+					password = dbpasswd
+
+			- Restrict permissions of the credentials file so that only your user has access to it:
+				- chmod 600 ~/.my.cnf
+
+			- Create a directory to store the backups:
+				- mkdir ~/db_backups
+
+			- Open your user crontab file:
+				- crontab -e
+
+			- Add the following cron job that will create a backup of a database name mydb every day at 3am:
+				- 0 3 * * * /usr/bin/mysqldump -u dbuser mydb > /home/username/db_backups/mydb-$(date +%Y%m%d).sql
+
+			- You can also create another cronjob to delete any backups older than 30 days:
+				- find /path/to/backups -type f -name "*.sql" -mtime +30 -delete
+
+
+	- Encrypt my backup file:
+		- openssl enc -aes-256-cbc -in /db_back/mysql_backup.sql -out /db_back/testbackup.file (if you ask for the password can type enter and can leave blank password)
+		- ls -l /db_back/mysql_backup.sql
+		- rm /db_back/mysql_backup.sql
+		- ls -l /db_back/testbackup.file
+		- cat /db_back/testbackup.file
+		- mysql -u root -p
+			show databases;
+			use mysql;
+			drop database mysql;
+			show databases;
+			exit
+
+	- Decrypt my backup file:
+		- openssl enc -aes-256-cbc -d -in /db_back/testbackup.file > /db_back/mysql.sql
+		- ls -l /db_back/
+
+	
+
+
+
